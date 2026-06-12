@@ -1,0 +1,43 @@
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Logs
+*.log
+*.err
+backend.log
+frontend.log
+run*.log
+run*.err
+startup.log
+startup.err
+
+# Uploads / generated
+nutrilens-india/backend/uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.xlsx
+*.docx

@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Raleway:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #FFF8F1;
+    --foreground: #1E1E1E;
+    --card: #FFFFFF;
+    --card-foreground: #1E1E1E;
+    --primary: #C96A3D;
+    --primary-foreground: #FFFFFF;
+    --secondary: #E6B17E;
+    --secondary-foreground: #1E1E1E;
+    --accent: #3F6B4B;
+    --accent-foreground: #FFFFFF;
+    --muted: #F5EDE3;
+    --muted-foreground: #6B5C4E;
+    --border: #E8D5C0;
+    --input: #E8D5C0;
+    --ring: #C96A3D;
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-dark font-body antialiased;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(232, 213, 192, 0.5);
+  }
+
+  .nutrition-gradient {
+    background: linear-gradient(135deg, #C96A3D 0%, #E6B17E 100%);
+  }
+
+  .accent-gradient {
+    background: linear-gradient(135deg, #3F6B4B 0%, #5A8A65 100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
