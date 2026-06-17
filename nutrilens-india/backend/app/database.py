@@ -1,4 +1,5 @@
 import ssl
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
@@ -42,4 +43,15 @@ async def get_db():
 async def init_db():
     import app.models  # noqa: F401 — registers all ORM models with Base.metadata
     async with engine.begin() as conn:
+        # Enable trigram extension before creating tables that depend on it.
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)
+        # GIN trigram indexes for sub-100 ms food search.
+        await conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_foods_canonical_trgm
+            ON foods USING gin (LOWER(canonical_name) gin_trgm_ops)
+        """))
+        await conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_food_aliases_name_trgm
+            ON food_aliases USING gin (LOWER(alias_name) gin_trgm_ops)
+        """))

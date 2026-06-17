@@ -14,6 +14,8 @@ from app.routes.compliance import router as compliance_router
 from app.routes.reports import router as reports_router
 from app.routes.admin import router as admin_router
 from app.routes.payment import router as payment_router
+from app.routes.foods import router as foods_router
+from app.routes.auth import router as auth_router
 
 
 @asynccontextmanager
@@ -50,6 +52,8 @@ app.include_router(compliance_router)
 app.include_router(reports_router)
 app.include_router(admin_router)
 app.include_router(payment_router)
+app.include_router(foods_router)
+app.include_router(auth_router)
 
 
 @app.get("/health")

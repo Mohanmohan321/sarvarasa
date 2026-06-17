@@ -329,3 +329,29 @@ The engine (`backend/app/services/nutrition_engine.py`) parses free-text meal su
 - **Status `PASSING`:** ≥ 85% submitted (≥ 18 meals) with no 2 consecutive missed days
 - **Status `FAILED`:** < 85% submitted or 2+ consecutive missed days
 - **Report generation** is locked until compliance ≥ 85%
+Open two terminal windows (PowerShell or CMD) from c:\Users\mohanraj\Desktop\sarvarasa\nutrilens-india\:
+
+Terminal 1 — Backend
+
+
+cd c:\Users\mohanraj\Desktop\sarvarasa\nutrilens-india\backend
+venv\Scripts\uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+
+Terminal 2 — Frontend
+
+cd c:\Users\mohanraj\Desktop\sarvarasa\nutrilens-india\frontend
+npm run dev
+
+
+Then open your browser:
+
+What	URL
+App	http://localhost:3000
+API docs	http://localhost:8000/docs
+Food search test	http://localhost:8000/foods/search?q=idli
+First time only — run the INDB food import (one time, populates the food database):
+
+
+cd c:\Users\mohanraj\Desktop\sarvarasa\nutrilens-india\backend
+venv\Scripts\python scripts\import_indb.py

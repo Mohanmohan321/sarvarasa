@@ -7,6 +7,51 @@ export const api = axios.create({
   timeout: 60000,
 });
 
+// Attach JWT token to every request when available
+api.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("sarvarasa_token");
+    if (token) config.headers["Authorization"] = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+export interface SignupRequest {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  age?: number;
+  gender?: string;
+  goal?: string;
+}
+
+export interface AuthResponse {
+  client_id: string;
+  name: string;
+  email: string;
+  status: string;
+  token: string;
+  audit_completed?: boolean;
+}
+
+export async function signup(req: SignupRequest): Promise<AuthResponse> {
+  const { data } = await api.post("/auth/signup", req);
+  return data;
+}
+
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  const { data } = await api.post("/auth/login", { email, password });
+  return data;
+}
+
+export async function getMe(): Promise<AuthResponse & { phone?: string; age?: number; gender?: string; challenge_cycle?: number }> {
+  const { data } = await api.get("/auth/me");
+  return data;
+}
+
 // ─── Registration ─────────────────────────────────────────────────────────────
 
 export interface RegisterRequest {
@@ -102,12 +147,33 @@ export interface SubmitMealParams {
   image: File;
 }
 
+export interface MealFoodItem {
+  id: string;
+  food_id: string | null;
+  food_name: string;
+  quantity: number;
+  unit: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export interface NutritionTotal {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
 export interface MealEntry {
   meal_type: string;
   meal_text: string;
   image_url?: string;
   food_pattern_tags: string[];
   submitted_at: string;
+  foods?: MealFoodItem[];
+  nutrition_total?: NutritionTotal;
 }
 
 export interface DayMeals {
@@ -268,6 +334,11 @@ export interface AdminClientDetail {
     eligibility_band: string;
     band_label: string;
     food_pattern_summary: Record<string, number>;
+    food_observations: string[];
+    strengths: string[];
+    improvement_areas: string[];
+    action_plan: string[];
+    wholesome_plate_tips: string[];
     generated_at: string;
   } | null;
   payment_history: {
@@ -294,7 +365,74 @@ export async function getAdminClientDetail(clientId: string): Promise<AdminClien
   return data;
 }
 
-// ─── Legacy (kept for compatibility with existing food search) ────────────────
+// ─── Food Search ─────────────────────────────────────────────────────────────
+
+export interface FoodSearchResult {
+  food_id: string;
+  food_name: string;
+  serving_unit: string;
+  confidence: number;
+}
+
+export interface StructuredFood {
+  food_id: string;
+  food_name: string;
+  quantity: number;
+  unit: string;
+}
+
+export async function searchFoods(q: string): Promise<FoodSearchResult[]> {
+  const { data } = await api.get("/foods/search", { params: { q } });
+  return data as FoodSearchResult[];
+}
+
+// ─── Structured meal submission ───────────────────────────────────────────────
+
+export interface SubmitMealStructuredParams {
+  client_id: string;
+  day_number: number;
+  meal_type: string;
+  foods: StructuredFood[];
+  quick_add_text?: string;
+  image: File | null;   // null = keep existing image (re-submission)
+}
+
+export async function submitMealStructured(
+  params: SubmitMealStructuredParams,
+): Promise<{ log_id: string; image_url: string }> {
+  const form = new FormData();
+  form.append("client_id", params.client_id);
+  form.append("day_number", String(params.day_number));
+  form.append("meal_type", params.meal_type);
+  form.append("foods_json", JSON.stringify(params.foods));
+  if (params.quick_add_text) form.append("quick_add_text", params.quick_add_text);
+  if (params.image) form.append("image", params.image);
+  const { data } = await api.post("/challenge/submit-meal", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+// ─── Meal foods (structured food entries per meal) ────────────────────────────
+
+export interface MealFoodEntry {
+  id: string;
+  food_id: string;
+  food_name: string;
+  quantity: number;
+  unit: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export async function getMealFoods(mealLogId: string): Promise<MealFoodEntry[]> {
+  const { data } = await api.get(`/challenge/meal-foods/${mealLogId}`);
+  return data as MealFoodEntry[];
+}
+
+// ─── Legacy autocomplete (kept for compatibility) ─────────────────────────────
 
 export async function foodAutocomplete(q: string): Promise<string[]> {
   const { data } = await api.get("/foods/autocomplete", { params: { q } });

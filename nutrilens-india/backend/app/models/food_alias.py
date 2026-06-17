@@ -9,7 +9,8 @@ def gen_uuid():
 
 
 class FoodAlias(Base):
-    __tablename__ = "food_aliases"
+    """Keyword-level alias→canonical mapping used by food_pattern_engine seed."""
+    __tablename__ = "food_keyword_aliases"
 
     id = Column(String, primary_key=True, default=gen_uuid)
     alias = Column(String, nullable=False, unique=True, index=True)   # e.g. "idly", "chai", "soru"

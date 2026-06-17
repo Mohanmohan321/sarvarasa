@@ -184,13 +184,133 @@ export default function AdminClientPage() {
 
         {/* Report */}
         {report && (
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Challenge Report</CardTitle></CardHeader>
-            <CardContent className="text-sm font-body space-y-1">
-              <p>Status: <strong>{report.qualification_status}</strong></p>
-              <p>Compliance: <strong>{report.compliance_score}%</strong></p>
-              <p>Days: <strong>{report.completed_days}</strong></p>
-              <p>Generated: <strong>{new Date(report.generated_at).toLocaleDateString()}</strong></p>
+          <Card id="report">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Challenge Report</CardTitle>
+                <span className={cn(
+                  "text-xs font-semibold px-2.5 py-1 rounded-full",
+                  report.qualification_status === "QUALIFIED"
+                    ? "bg-accent/20 text-accent"
+                    : report.qualification_status === "SECOND_CHANCE"
+                    ? "bg-primary/20 text-primary"
+                    : "bg-destructive/20 text-destructive"
+                )}>
+                  {report.qualification_status}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="text-sm font-body space-y-4">
+              {/* Summary row */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  ["Compliance", `${report.compliance_score}%`],
+                  ["Days Done", `${report.completed_days} / 7`],
+                  ["Band", report.band_label || report.eligibility_band || "—"],
+                ].map(([l, v]) => (
+                  <div key={l} className="bg-muted/40 rounded-xl p-3 text-center">
+                    <p className="text-xs text-dark/50 mb-0.5">{l}</p>
+                    <p className="font-semibold text-dark text-sm">{v}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Food observations */}
+              {report.food_observations?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-dark/50 uppercase tracking-wide mb-1.5">Food Observations</p>
+                  <ul className="space-y-1">
+                    {report.food_observations.map((obs, i) => (
+                      <li key={i} className="flex gap-2 text-dark/80">
+                        <span className="text-primary mt-0.5 shrink-0">•</span>{obs}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Strengths */}
+              {report.strengths?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-accent uppercase tracking-wide mb-1.5">Strengths</p>
+                  <ul className="space-y-1">
+                    {report.strengths.map((s, i) => (
+                      <li key={i} className="flex gap-2 text-dark/80">
+                        <span className="text-accent mt-0.5 shrink-0">✓</span>{s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Improvement areas */}
+              {report.improvement_areas?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-destructive/70 uppercase tracking-wide mb-1.5">Areas to Improve</p>
+                  <ul className="space-y-1">
+                    {report.improvement_areas.map((s, i) => (
+                      <li key={i} className="flex gap-2 text-dark/80">
+                        <span className="text-destructive/60 mt-0.5 shrink-0">→</span>{s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Action plan */}
+              {report.action_plan?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1.5">Action Plan</p>
+                  <ul className="space-y-1">
+                    {report.action_plan.map((s, i) => (
+                      <li key={i} className="flex gap-2 text-dark/80">
+                        <span className="text-primary font-semibold shrink-0">{i + 1}.</span>{s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Wholesome plate tips */}
+              {report.wholesome_plate_tips?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-dark/50 uppercase tracking-wide mb-1.5">Wholesome Plate Tips</p>
+                  <ul className="space-y-1">
+                    {report.wholesome_plate_tips.map((s, i) => (
+                      <li key={i} className="flex gap-2 text-dark/80">
+                        <span className="shrink-0">🌿</span>{s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Food pattern summary */}
+              {Object.keys(report.food_pattern_summary || {}).length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-dark/50 uppercase tracking-wide mb-1.5">Food Pattern Tags</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(report.food_pattern_summary).map(([tag, count]) => (
+                      <span key={tag} className="text-xs bg-muted px-2.5 py-1 rounded-full text-dark/60">
+                        {tag.replace(/_/g, " ")} <span className="font-semibold text-dark">{count}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-dark/30 pt-1">
+                Generated {new Date(report.generated_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* No report yet */}
+        {!report && (
+          <Card className="border-dashed">
+            <CardContent className="py-6 text-center text-dark/40 text-sm font-body">
+              No report generated yet for this user.
             </CardContent>
           </Card>
         )}

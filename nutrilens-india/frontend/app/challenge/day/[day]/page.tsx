@@ -7,10 +7,25 @@ import Image from "next/image";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { AddFoodDialog } from "@/components/challenge/add-food-dialog";
 import { useToast } from "@/lib/use-toast";
-import { getDayMeals, submitMeal, type DayMeals } from "@/lib/api";
 import {
-  Loader2, Camera, CheckCircle2, Upload, ArrowLeft, ArrowRight
+  getDayMeals,
+  submitMealStructured,
+  type DayMeals,
+  type MealEntry as ApiMealEntry,
+  type StructuredFood,
+} from "@/lib/api";
+import {
+  Loader2,
+  Camera,
+  CheckCircle2,
+  Upload,
+  ArrowLeft,
+  ArrowRight,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -19,20 +34,23 @@ const CLIENT_ID_KEY = "sarvarasa_client_id";
 
 const MEAL_ORDER = ["BREAKFAST", "LUNCH", "DINNER", "SNACK"];
 const MEAL_INFO: Record<string, { label: string; emoji: string; hint: string }> = {
-  BREAKFAST: { label: "Breakfast", emoji: "🌅", hint: "Idli, dosa, upma, poha, paratha..." },
-  LUNCH: { label: "Lunch", emoji: "☀️", hint: "Rice, sambar, dal, roti, sabzi..." },
-  DINNER: { label: "Dinner", emoji: "🌙", hint: "Dinner meal, soup, khichdi..." },
-  SNACK: { label: "Snack (Optional)", emoji: "🍎", hint: "Fruits, nuts, tea, biscuits..." },
+  BREAKFAST: { label: "Breakfast", emoji: "🌅", hint: "Idli, dosa, upma, poha, paratha…" },
+  LUNCH:     { label: "Lunch",     emoji: "☀️", hint: "Rice, sambar, dal, roti, sabzi…" },
+  DINNER:    { label: "Dinner",    emoji: "🌙", hint: "Dinner meal, soup, khichdi…" },
+  SNACK:     { label: "Snack (Optional)", emoji: "🍎", hint: "Fruits, nuts, tea, biscuits…" },
 };
 const REQUIRED_MEALS = ["BREAKFAST", "LUNCH", "DINNER"];
 
 interface MealFormState {
-  text: string;
+  foods: StructuredFood[];
+  quickAddText: string;
+  showQuickAdd: boolean;
   imageFile: File | null;
   imagePreview: string | null;
   submitting: boolean;
   submitted: boolean;
   existingImageUrl?: string;
+  existingFoods?: string;
 }
 
 function MealForm({
@@ -45,18 +63,30 @@ function MealForm({
   mealType: string;
   dayNumber: number;
   clientId: string;
-  existing?: { meal_text: string; image_url?: string };
+  existing?: ApiMealEntry;
   onSubmitted: (type: string) => void;
 }) {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Restore previously saved structured foods from the existing meal entry
+  const existingStructuredFoods: StructuredFood[] = (existing?.foods ?? []).map((f) => ({
+    food_id:   f.food_id ?? "",
+    food_name: f.food_name,
+    quantity:  f.quantity,
+    unit:      f.unit,
+  }));
+
   const [state, setState] = useState<MealFormState>({
-    text: existing?.meal_text || "",
+    foods: existingStructuredFoods,
+    quickAddText: "",
+    showQuickAdd: false,
     imageFile: null,
     imagePreview: null,
     submitting: false,
     submitted: !!existing,
     existingImageUrl: existing?.image_url,
+    existingFoods: existing?.meal_text,
   });
 
   const info = MEAL_INFO[mealType];
@@ -73,47 +103,69 @@ function MealForm({
     if (file && file.type.startsWith("image/")) handleFile(file);
   };
 
-  const handleSubmit = async () => {
-    if (!state.text.trim()) {
-      toast({ title: "Description required", description: "Please describe what you ate.", variant: "destructive" });
-      return;
-    }
-    if (!state.imageFile && !state.existingImageUrl) {
-      toast({ title: "Image required", description: "Please upload a photo of your meal.", variant: "destructive" });
-      return;
-    }
+  const addFood = (food: StructuredFood) => {
+    setState((s) => ({ ...s, foods: [...s.foods, food] }));
+  };
 
+  const removeFood = (index: number) => {
+    setState((s) => ({
+      ...s,
+      foods: s.foods.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleSubmit = async () => {
+    const hasFoods = state.foods.length > 0 || state.quickAddText.trim();
+    if (!hasFoods) {
+      toast({
+        title: "Add at least one food",
+        description: "Search and add a food, or use Quick Add below.",
+        variant: "destructive",
+      });
+      return;
+    }
     setState((s) => ({ ...s, submitting: true }));
     try {
-      await submitMeal({
-        client_id: clientId,
-        day_number: dayNumber,
-        meal_type: mealType,
-        meal_text: state.text,
-        image: state.imageFile!,
+      await submitMealStructured({
+        client_id:      clientId,
+        day_number:     dayNumber,
+        meal_type:      mealType,
+        foods:          state.foods,
+        quick_add_text: state.quickAddText.trim() || undefined,
+        image:          state.imageFile!,
       });
       setState((s) => ({ ...s, submitting: false, submitted: true }));
       onSubmitted(mealType);
-      toast({ title: `${info.label} logged!`, description: "Your meal has been saved." });
+      toast({ title: `${info.label} saved!`, description: "Your meal has been recorded." });
     } catch {
       setState((s) => ({ ...s, submitting: false }));
-      toast({ title: "Error", description: "Could not save meal. Please try again.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Could not save meal. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
+  // ── Submitted state ────────────────────────────────────────────────────────
   if (state.submitted) {
+    const summary =
+      state.foods.length > 0
+        ? state.foods.map((f) => `${f.quantity}x ${f.food_name}`).join(", ")
+        : state.quickAddText || state.existingFoods || "Meal logged";
+
     return (
       <div className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-2xl">
         <CheckCircle2 className="w-6 h-6 text-accent shrink-0" />
-        <div>
+        <div className="flex-1 min-w-0">
           <p className="font-body text-sm font-medium text-dark">{info.label} logged</p>
-          <p className="font-body text-xs text-dark/50 truncate max-w-[220px]">{state.text}</p>
+          <p className="font-body text-xs text-dark/50 truncate">{summary}</p>
         </div>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setState((s) => ({ ...s, submitted: false }))}
-          className="ml-auto text-dark/40 hover:text-dark text-xs"
+          className="ml-auto text-dark/40 hover:text-dark text-xs shrink-0"
         >
           Edit
         </Button>
@@ -121,69 +173,141 @@ function MealForm({
     );
   }
 
-  const imageDisplayUrl = state.imagePreview ||
+  const imageDisplayUrl =
+    state.imagePreview ||
     (state.existingImageUrl ? `${API_URL}${state.existingImageUrl}` : null);
 
   return (
     <Card>
       <CardContent className="p-5 space-y-4">
+        {/* Header */}
         <div className="flex items-center gap-2">
           <span className="text-xl">{info.emoji}</span>
           <h3 className="font-heading text-base font-semibold text-dark">{info.label}</h3>
         </div>
 
         {/* Image Upload */}
-        <div
-          onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
-          onClick={() => fileRef.current?.click()}
-          className="relative cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors overflow-hidden"
-        >
-          {imageDisplayUrl ? (
-            <div className="relative h-32">
-              <Image src={imageDisplayUrl} alt="Meal" fill className="object-cover" />
-              <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                <Camera className="w-6 h-6 text-white" />
+        <div>
+          <div
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+            onClick={() => fileRef.current?.click()}
+            className={cn(
+              "relative cursor-pointer rounded-xl border-2 border-dashed transition-colors overflow-hidden",
+              imageDisplayUrl
+                ? "border-accent/40 hover:border-accent/60"
+                : "border-destructive/40 hover:border-destructive/60 bg-destructive/5"
+            )}
+          >
+            {imageDisplayUrl ? (
+              <div className="relative h-32">
+                <Image src={imageDisplayUrl} alt="Meal" fill className="object-cover" />
+                <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                  <Camera className="w-6 h-6 text-white" />
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-28 gap-2 text-dark/40">
-              <Upload className="w-6 h-6" />
-              <p className="font-body text-sm">Tap to upload a photo</p>
-              <p className="font-body text-xs">Required — drag & drop or click</p>
-            </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-28 gap-2">
+                <Upload className="w-6 h-6 text-destructive/50" />
+                <p className="font-body text-sm text-destructive/70 font-medium">Tap to upload a photo</p>
+                <p className="font-body text-xs text-destructive/50">Photo is required to save</p>
+              </div>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+            />
+          </div>
+          {!imageDisplayUrl && (
+            <p className="font-body text-xs text-destructive/70 mt-1.5 flex items-center gap-1">
+              <span className="font-semibold">⚠</span> A meal photo is required before saving
+            </p>
           )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-          />
         </div>
 
-        {/* Text Description */}
+        {/* Add Food (structured search) */}
+        <AddFoodDialog onAdd={addFood} />
+
+        {/* Added Foods List */}
+        {state.foods.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="font-body text-xs text-dark/50 uppercase tracking-wide font-semibold">
+              Added Foods
+            </p>
+            {state.foods.map((food, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 px-3 py-2 bg-accent/5 border border-accent/20 rounded-xl"
+              >
+                <CheckCircle2 className="w-4 h-4 text-accent shrink-0" />
+                <span className="font-body text-sm text-dark flex-1">
+                  {food.quantity} {food.unit} — {food.food_name}
+                </span>
+                <button
+                  onClick={() => removeFood(i)}
+                  className="text-dark/30 hover:text-destructive transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Quick Add (optional free-text fallback) */}
         <div>
-          <textarea
-            rows={3}
-            value={state.text}
-            onChange={(e) => setState((s) => ({ ...s, text: e.target.value }))}
-            placeholder={`Describe your ${info.label.toLowerCase()}: ${info.hint}`}
-            className="w-full px-4 py-3 rounded-xl border border-border bg-card font-body text-sm text-dark placeholder:text-dark/40 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
-          <p className="font-body text-xs text-dark/40 mt-1">Be descriptive — e.g. "2 idli with sambar and coconut chutney"</p>
+          <button
+            onClick={() => setState((s) => ({ ...s, showQuickAdd: !s.showQuickAdd }))}
+            className="flex items-center gap-1.5 font-body text-xs text-dark/50 hover:text-dark transition-colors"
+          >
+            {state.showQuickAdd ? (
+              <ChevronUp className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5" />
+            )}
+            Quick Add (optional)
+          </button>
+          <AnimatePresence>
+            {state.showQuickAdd && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-2 overflow-hidden"
+              >
+                <textarea
+                  rows={2}
+                  value={state.quickAddText}
+                  onChange={(e) => setState((s) => ({ ...s, quickAddText: e.target.value }))}
+                  placeholder={`e.g. "I ate ${info.hint}"`}
+                  className="w-full px-4 py-3 rounded-xl border border-border bg-card font-body text-sm text-dark placeholder:text-dark/40 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                />
+                <p className="font-body text-xs text-dark/40 mt-1">
+                  Free text won't be matched to the food database — use it only as extra context.
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <Button
           onClick={handleSubmit}
-          disabled={state.submitting}
+          disabled={state.submitting || !imageDisplayUrl}
           className="w-full"
+          title={!imageDisplayUrl ? "Upload a meal photo first" : undefined}
         >
           {state.submitting ? (
-            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving…</>
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving…
+            </>
+          ) : !imageDisplayUrl ? (
+            "📷 Upload Photo to Save"
           ) : (
-            <>Save {info.label}</>
+            `Save ${info.label}`
           )}
         </Button>
       </CardContent>
@@ -199,7 +323,8 @@ export default function DayPage() {
   const [loading, setLoading] = useState(true);
   const [submittedTypes, setSubmittedTypes] = useState<Set<string>>(new Set());
 
-  const clientId = typeof window !== "undefined" ? localStorage.getItem(CLIENT_ID_KEY) || "" : "";
+  const clientId =
+    typeof window !== "undefined" ? localStorage.getItem(CLIENT_ID_KEY) || "" : "";
 
   useEffect(() => {
     if (!clientId) { router.push("/onboarding"); return; }
@@ -228,7 +353,7 @@ export default function DayPage() {
   }
 
   const requiredDone = REQUIRED_MEALS.every((t) => submittedTypes.has(t));
-  const existingByType = Object.fromEntries(
+  const existingByType: Record<string, ApiMealEntry> = Object.fromEntries(
     (dayMeals?.meals || []).map((m) => [m.meal_type, m])
   );
 
@@ -248,7 +373,7 @@ export default function DayPage() {
           </div>
         </div>
 
-        {/* Completion Badge */}
+        {/* Completion badge */}
         {requiredDone && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -257,22 +382,26 @@ export default function DayPage() {
           >
             <CheckCircle2 className="w-6 h-6 text-accent" />
             <div>
-              <p className="font-heading text-sm font-semibold text-dark">Day {dayNumber} Complete!</p>
+              <p className="font-heading text-sm font-semibold text-dark">
+                Day {dayNumber} Complete!
+              </p>
               <p className="font-body text-xs text-dark/60">All 3 required meals submitted.</p>
             </div>
           </motion.div>
         )}
 
-        {/* Required Meals */}
+        {/* Required meals */}
         <div>
-          <p className="font-body text-xs text-dark/50 uppercase tracking-wide font-semibold mb-3">Required</p>
+          <p className="font-body text-xs text-dark/50 uppercase tracking-wide font-semibold mb-3">
+            Required
+          </p>
           <div className="space-y-3">
-            {REQUIRED_MEALS.map((mealType) => (
+            {REQUIRED_MEALS.map((mealType, idx) => (
               <AnimatePresence key={mealType}>
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: REQUIRED_MEALS.indexOf(mealType) * 0.1 }}
+                  transition={{ delay: idx * 0.1 }}
                 >
                   <MealForm
                     mealType={mealType}
@@ -287,9 +416,11 @@ export default function DayPage() {
           </div>
         </div>
 
-        {/* Optional Snack */}
+        {/* Optional snack */}
         <div>
-          <p className="font-body text-xs text-dark/50 uppercase tracking-wide font-semibold mb-3">Optional</p>
+          <p className="font-body text-xs text-dark/50 uppercase tracking-wide font-semibold mb-3">
+            Optional
+          </p>
           <MealForm
             mealType="SNACK"
             dayNumber={dayNumber}
@@ -317,10 +448,8 @@ export default function DayPage() {
               </Button>
             </Link>
           )}
-          <Link href="/challenge" className={cn("flex-1", dayNumber === 1 || dayNumber === 7 ? "" : "flex-none w-auto")}>
-            <Button className="w-full">
-              View Progress
-            </Button>
+          <Link href="/challenge" className="flex-1">
+            <Button className="w-full">View Progress</Button>
           </Link>
         </div>
       </div>

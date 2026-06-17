@@ -45,6 +45,7 @@ class Client(Base):
     goal = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     email = Column(String, nullable=True, index=True)
+    password_hash = Column(String, nullable=True)
     batch_id = Column(String, ForeignKey("challenge_batches.id"), nullable=True)
     status = Column(String, default=ClientStatus.ACTIVE)
     audit_completed = Column(Boolean, default=False)

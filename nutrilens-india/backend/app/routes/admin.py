@@ -160,7 +160,12 @@ async def get_client_detail(client_id: str, db: AsyncSession = Depends(get_db)):
             "qualification_status": report.qualification_status,
             "eligibility_band": report.eligibility_band,
             "band_label": BAND_LABELS.get(report.eligibility_band or "", ""),
-            "food_pattern_summary": report.food_pattern_summary,
+            "food_pattern_summary": report.food_pattern_summary or {},
+            "food_observations": report.food_observations or [],
+            "strengths": report.strengths or [],
+            "improvement_areas": report.improvement_areas or [],
+            "action_plan": report.action_plan or [],
+            "wholesome_plate_tips": report.wholesome_plate_tips or [],
             "generated_at": report.generated_at,
         } if report else None,
         "payment_history": [

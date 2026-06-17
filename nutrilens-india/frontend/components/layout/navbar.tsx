@@ -50,11 +50,14 @@ export function Navbar() {
           </Link>
         </nav>
 
-        <Link href="/audit">
-          <Button size="sm" className="hidden md:flex">
-            Start Challenge
-          </Button>
-        </Link>
+        <div className="hidden md:flex items-center gap-2">
+          <Link href="/login">
+            <Button size="sm" variant="ghost">Log In</Button>
+          </Link>
+          <Link href="/signup">
+            <Button size="sm">Sign Up</Button>
+          </Link>
+        </div>
       </div>
     </motion.header>
   );
