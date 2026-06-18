@@ -15,7 +15,7 @@ const noPillars = [
 export function Hero() {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-hero-pattern px-4 pt-20">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,106,61,0.06)_0%,transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(27,96,64,0.06)_0%,transparent_70%)]" />
 
       <div className="relative z-10 max-w-2xl mx-auto text-center">
         <motion.div
@@ -23,8 +23,8 @@ export function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <span className="inline-flex items-center gap-2 bg-accent/10 text-accent border border-accent/20 rounded-full px-4 py-1.5 text-sm font-semibold font-body mb-6">
-            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+          <span className="inline-flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 rounded-full px-4 py-1.5 text-sm font-semibold font-body mb-6">
+            <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
             7-Day Food Awareness Challenge
           </span>
         </motion.div>
@@ -39,7 +39,7 @@ export function Hero() {
           <span className="text-primary relative">
             Wholesome Eating
             <svg className="absolute -bottom-2 left-0 w-full" height="8" viewBox="0 0 300 8" preserveAspectRatio="none">
-              <path d="M0 6 Q75 0 150 4 Q225 8 300 2" stroke="#C96A3D" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.4" />
+              <path d="M0 6 Q75 0 150 4 Q225 8 300 2" stroke="#1B6040" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.4" />
             </svg>
           </span>{" "}
           Challenge
@@ -63,7 +63,7 @@ export function Hero() {
         >
           {noPillars.map((item) => (
             <div key={item} className="flex items-center gap-1.5 text-left">
-              <CheckCircle2 className="w-4 h-4 text-accent shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-secondary shrink-0" />
               <span className="font-body text-sm text-dark/70">{item}</span>
             </div>
           ))}

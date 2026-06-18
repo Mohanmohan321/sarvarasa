@@ -6,21 +6,22 @@
 
 @layer base {
   :root {
-    --background: #FFF8F1;
+    --background: #F5F2EA;
     --foreground: #1E1E1E;
     --card: #FFFFFF;
     --card-foreground: #1E1E1E;
-    --primary: #C96A3D;
+    --primary: #1B6040;
     --primary-foreground: #FFFFFF;
-    --secondary: #E6B17E;
-    --secondary-foreground: #1E1E1E;
-    --accent: #3F6B4B;
+    --secondary: #22C55E;
+    --secondary-foreground: #FFFFFF;
+    --accent: #1B3020;
     --accent-foreground: #FFFFFF;
-    --muted: #F5EDE3;
-    --muted-foreground: #6B5C4E;
-    --border: #E8D5C0;
-    --input: #E8D5C0;
-    --ring: #C96A3D;
+    --espresso: #2C1208;
+    --muted: #E8F5ED;
+    --muted-foreground: #4B6D57;
+    --border: #C0DBC9;
+    --input: #C0DBC9;
+    --ring: #1B6040;
     --radius: 0.75rem;
   }
 
@@ -54,18 +55,18 @@
   }
 
   .glass {
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(232, 213, 192, 0.5);
+    border: 1px solid rgba(192, 219, 201, 0.5);
   }
 
   .nutrition-gradient {
-    background: linear-gradient(135deg, #C96A3D 0%, #E6B17E 100%);
+    background: linear-gradient(135deg, #1B6040 0%, #22C55E 100%);
   }
 
   .accent-gradient {
-    background: linear-gradient(135deg, #3F6B4B 0%, #5A8A65 100%);
+    background: linear-gradient(135deg, #1B6040 0%, #1B3020 100%);
   }
 }
 

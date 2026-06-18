@@ -14,9 +14,9 @@ export function formatNutrient(value: number, unit: string): string {
 }
 
 export function getHealthScoreColor(score: number): string {
-  if (score >= 75) return "#4CAF50";
-  if (score >= 50) return "#E6B17E";
-  if (score >= 25) return "#C96A3D";
+  if (score >= 75) return "#22C55E";
+  if (score >= 50) return "#1B6040";
+  if (score >= 25) return "#1B3020";
   return "#DC2626";
 }
 

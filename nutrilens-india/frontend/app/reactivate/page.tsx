@@ -69,7 +69,7 @@ export default function ReactivatePage() {
             toast({ title: "Verification failed", description: "Please contact support.", variant: "destructive" });
           }
         },
-        theme: { color: "#C96A3D" },
+        theme: { color: "#1B6040" },
       });
       rzp.open();
     } catch {
