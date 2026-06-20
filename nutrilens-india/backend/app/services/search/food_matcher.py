@@ -1,5 +1,5 @@
 """
-Food matcher: Gemini canonicalization → hybrid search → ranked result.
+Food matcher: OpenRouter canonicalization → hybrid search → ranked result.
 
 Flow:
   raw_detection  →  canonicalize()  →  hybrid_search()  →  FoodMatch
@@ -8,13 +8,11 @@ from __future__ import annotations
 import json
 import re
 from typing import List
-import google.generativeai as genai
+from openai import OpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.services.search.semantic_search import hybrid_search, SemanticSearchResult
-
-genai.configure(api_key=settings.gemini_api_key)
 
 _CANON_PROMPT = """You are an expert in Indian cuisine and nutrition databases.
 
@@ -34,18 +32,24 @@ Return ONLY valid JSON, nothing else:
 
 async def canonicalize(raw_name: str) -> dict:
     """
-    Use Gemini to map a raw detection string to a canonical food name.
+    Use OpenRouter to map a raw detection string to a canonical food name.
     Falls back to the raw name when the key is missing/invalid.
     """
     from app.config import settings
-    if not settings.gemini_api_key or settings.gemini_api_key == "your-gemini-api-key-here":
+    if not settings.openrouter_api_key or settings.openrouter_api_key == "your-openrouter-api-key-here":
         return {"canonical_name": raw_name, "confidence": 0.5, "reasoning": "no-key-fallback"}
 
-    model = genai.GenerativeModel("gemini-2.0-flash-exp")
+    client = OpenAI(
+        api_key=settings.openrouter_api_key,
+        base_url="https://openrouter.ai/api/v1"
+    )
     prompt = _CANON_PROMPT.format(raw_name=raw_name)
     try:
-        response = model.generate_content(prompt)
-        text = response.text.strip()
+        response = client.chat.completions.create(
+            model=settings.content_safety_model,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        text = response.choices[0].message.content.strip()
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             return json.loads(match.group())
@@ -87,10 +91,8 @@ async def match_food(raw_detection: str, db: AsyncSession) -> FoodMatch:
     canonical_name = canon.get("canonical_name", raw_detection)
     canon_conf = float(canon.get("confidence", 0.5))
 
-    # Search with canonical name for best embedding match
     results = await hybrid_search(canonical_name, db, limit=5)
 
-    # Fallback: also search the raw detection if top result is weak
     if not results or (results and results[0].score < 0.6):
         raw_results = await hybrid_search(raw_detection, db, limit=3)
         seen = {r.food.id for r in results}

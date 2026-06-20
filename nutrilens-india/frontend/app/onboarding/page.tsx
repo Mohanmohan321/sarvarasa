@@ -38,8 +38,8 @@ export default function OnboardingPage() {
       });
       localStorage.setItem(CLIENT_ID_KEY, res.client_id);
       localStorage.setItem(CLIENT_NAME_KEY, res.name);
-      toast({ title: "Welcome!", description: "Let's start with your Lifestyle Audit." });
-      router.push("/audit");
+      toast({ title: "Welcome!", description: "Let's start the 7-Day Challenge!" });
+      router.push("/challenge");
     } catch {
       toast({ title: "Error", description: "Registration failed. Please try again.", variant: "destructive" });
     } finally {

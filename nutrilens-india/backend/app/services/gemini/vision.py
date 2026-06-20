@@ -1,11 +1,15 @@
-import google.generativeai as genai
-from PIL import Image
+import base64
 import json
 import io
 import re
+from openai import OpenAI
+from PIL import Image
 from app.config import settings
 
-genai.configure(api_key=settings.gemini_api_key)
+client = OpenAI(
+    api_key=settings.openrouter_api_key,
+    base_url="https://openrouter.ai/api/v1"
+)
 
 FOOD_DETECTION_PROMPT = """
 You are a specialized Indian food recognition AI. Analyze this food image and identify all dishes present.
@@ -70,18 +74,26 @@ Rules:
 
 
 async def detect_foods(image_bytes: bytes) -> dict:
-    model = genai.GenerativeModel("gemini-2.0-flash-exp")
-    image = Image.open(io.BytesIO(image_bytes))
+    image_b64 = base64.b64encode(image_bytes).decode()
 
-    response = model.generate_content([FOOD_DETECTION_PROMPT, image])
-    text = response.text.strip()
+    response = client.chat.completions.create(
+        model=settings.content_safety_model,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": FOOD_DETECTION_PROMPT},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
+                ]
+            }
+        ]
+    )
+    text = response.choices[0].message.content.strip()
 
-    # Extract JSON from response
     json_match = re.search(r'\{.*\}', text, re.DOTALL)
     if json_match:
         return json.loads(json_match.group())
 
-    # Fallback structure
     return {
         "foods": [{"name": "unknown_dish", "display_name": "Indian Dish", "confidence": 0.5, "category": "unknown"}],
         "meal_context": "unknown"
@@ -89,8 +101,6 @@ async def detect_foods(image_bytes: bytes) -> dict:
 
 
 async def generate_questions_ai(foods: list[str]) -> dict:
-    model = genai.GenerativeModel("gemini-2.0-flash-exp")
-
     food_names = ", ".join(foods)
     primary_food = foods[0] if foods else "dish"
     display_food = primary_food.replace("_", " ").title()
@@ -100,14 +110,16 @@ async def generate_questions_ai(foods: list[str]) -> dict:
         food_name=display_food
     )
 
-    response = model.generate_content(prompt)
-    text = response.text.strip()
+    response = client.chat.completions.create(
+        model=settings.content_safety_model,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    text = response.choices[0].message.content.strip()
 
     json_match = re.search(r'\{.*\}', text, re.DOTALL)
     if json_match:
         return json.loads(json_match.group())
 
-    # Fallback questions
     return {
         "questions": [
             {

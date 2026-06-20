@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/lib/use-toast";
 import { signup } from "@/lib/api";
-import { Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Loader2, ArrowRight, Eye, EyeOff, Lock } from "lucide-react";
 
 const CLIENT_ID_KEY = "sarvarasa_client_id";
 const CLIENT_NAME_KEY = "sarvarasa_client_name";
@@ -86,8 +86,8 @@ export default function SignupPage() {
       localStorage.setItem(CLIENT_ID_KEY, res.client_id);
       localStorage.setItem(CLIENT_NAME_KEY, res.name);
 
-      toast({ title: "Account created!", description: "Let's start with your Lifestyle Audit." });
-      router.push("/audit");
+      toast({ title: "Account created!", description: "Let's start the 7-Day Challenge!" });
+      router.push("/challenge");
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
@@ -110,6 +110,54 @@ export default function SignupPage() {
             <p className="font-body text-dark/60">
               Join the 7-Day Wholesome Eating Challenge
             </p>
+          </div>
+
+          {/* Milestones */}
+          <div className="mb-8 grid grid-cols-3 gap-3">
+            {/* Phase 1: 7-Day Challenge */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-primary/10 border-2 border-primary rounded-xl p-4 text-center"
+            >
+              <div className="flex items-center justify-center mb-2">
+                <span className="text-2xl">📸</span>
+              </div>
+              <h3 className="font-body font-semibold text-sm text-dark mb-1">Phase 1</h3>
+              <p className="font-body text-xs text-dark/70">7-Day Challenge</p>
+              <p className="font-body text-xs text-primary font-medium mt-1">Active</p>
+            </motion.div>
+
+            {/* Phase 2: Audit */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-dark/5 border-2 border-dark/20 rounded-xl p-4 text-center opacity-60"
+            >
+              <div className="flex items-center justify-center mb-2">
+                <Lock className="w-6 h-6 text-dark/40" />
+              </div>
+              <h3 className="font-body font-semibold text-sm text-dark mb-1">Phase 2</h3>
+              <p className="font-body text-xs text-dark/70">Lifestyle Audit</p>
+              <p className="font-body text-xs text-dark/40 mt-1">Locked</p>
+            </motion.div>
+
+            {/* Phase 3: Questions */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-dark/5 border-2 border-dark/20 rounded-xl p-4 text-center opacity-60"
+            >
+              <div className="flex items-center justify-center mb-2">
+                <Lock className="w-6 h-6 text-dark/40" />
+              </div>
+              <h3 className="font-body font-semibold text-sm text-dark mb-1">Phase 3</h3>
+              <p className="font-body text-xs text-dark/70">Deep Insights</p>
+              <p className="font-body text-xs text-dark/40 mt-1">Locked</p>
+            </motion.div>
           </div>
 
           <Card>
@@ -219,11 +267,11 @@ export default function SignupPage() {
                   </select>
                 </Field>
 
-                <Button type="submit" disabled={loading} size="lg" className="w-full">
+                <Button type="submit" disabled={loading} size="lg" className="w-full bg-primary hover:bg-primary/90">
                   {loading ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating account…</>
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Starting challenge…</>
                   ) : (
-                    <>Create Account <ArrowRight className="w-4 h-4 ml-2" /></>
+                    <>🎯 Take 7-Day Challenge <ArrowRight className="w-4 h-4 ml-2" /></>
                   )}
                 </Button>
 

@@ -137,6 +137,8 @@ export interface ChallengeProgress {
   days_detail: Record<string, string[]>;
   submitted_meals: number;
   required_meals: number;
+  current_day: number;
+  consistency_pct: number;
 }
 
 export interface SubmitMealParams {

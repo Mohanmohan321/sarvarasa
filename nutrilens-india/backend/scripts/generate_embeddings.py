@@ -2,7 +2,7 @@
 Phase-2 embedding generator (psycopg2, sync, batch reconnect).
 Fills embedding vectors for all foods that have embedding IS NULL.
 
-Run after adding GEMINI_API_KEY to backend/.env:
+Run after adding OPENROUTER_API_KEY to backend/.env:
     cd backend
     python scripts/generate_embeddings.py
 """
@@ -16,17 +16,20 @@ from dotenv import load_dotenv
 load_dotenv(ROOT / ".env")
 
 import psycopg2
-import google.generativeai as genai
+from openai import OpenAI
 
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
-if not GEMINI_KEY or GEMINI_KEY == "your-gemini-api-key-here":
-    print("ERROR: Set GEMINI_API_KEY in backend/.env first.")
+OPENROUTER_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+if not OPENROUTER_KEY or OPENROUTER_KEY == "your-openrouter-api-key-here":
+    print("ERROR: Set OPENROUTER_API_KEY in backend/.env first.")
     sys.exit(1)
 
-genai.configure(api_key=GEMINI_KEY)
+client = OpenAI(
+    api_key=OPENROUTER_KEY,
+    base_url="https://openrouter.ai/api/v1"
+)
 
 DB_URL_RAW = os.environ.get("DATABASE_URL", "")
-MODEL      = "models/text-embedding-004"
+MODEL      = "text-embedding-3-small"
 RATE_DELAY = 0.12
 BATCH_SIZE = 50
 
@@ -52,9 +55,8 @@ def new_conn():
 
 def embed(text: str) -> list[float] | None:
     try:
-        return genai.embed_content(
-            model=MODEL, content=text, task_type="retrieval_document"
-        )["embedding"]
+        result = client.embeddings.create(model=MODEL, input=text)
+        return result.data[0].embedding
     except Exception as e:
         print(f"    embed error: {e}")
         return None

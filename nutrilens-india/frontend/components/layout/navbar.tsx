@@ -1,23 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
-  const pathname = usePathname();
-  const isLanding = pathname === "/";
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   return (
     <>
@@ -29,9 +18,7 @@ export function Navbar() {
         className={cn(
           "fixed left-0 right-0 z-40 transition-all duration-300",
           "top-1.5",
-          scrolled || !isLanding
-            ? "glass shadow-soft py-3"
-            : "bg-transparent py-5"
+          "bg-primary-800 py-3 shadow-soft"
         )}
       >
         <div className="max-w-6xl mx-auto px-4 flex items-center justify-between">
@@ -47,10 +34,10 @@ export function Navbar() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
-            <Link href="/challenge" className="text-sm font-medium text-dark/70 hover:text-primary transition-colors cursor-pointer">
+            <Link href="/challenge" className="text-sm font-medium text-white hover:text-secondary transition-colors cursor-pointer">
               My Challenge
             </Link>
-            <Link href="/challenge/progress" className="text-sm font-medium text-dark/70 hover:text-primary transition-colors cursor-pointer">
+            <Link href="/challenge/progress" className="text-sm font-medium text-white hover:text-secondary transition-colors cursor-pointer">
               Progress
             </Link>
           </nav>

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, Integer, JSON, DateTime, ForeignKey
+from sqlalchemy import Column, String, Float, Integer, JSON, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -53,5 +53,13 @@ class ChallengeReport(Base):
     wholesome_plate_tips = Column(JSON, default=list)
     food_pattern_summary = Column(JSON, default=dict)
     generated_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # LLM-generated fields (added after initial schema)
+    commitment_level = Column(String, nullable=True)          # HIGH / MODERATE / LOW
+    commitment_analysis = Column(Text, nullable=True)         # narrative about seriousness
+    food_recommendations = Column(JSON, nullable=True)        # list of {food_name, category, reason, ...}
+    llm_insights = Column(JSON, nullable=True)                # personalized_insights + seriousness_indicators
+    llm_summary = Column(Text, nullable=True)                 # overall narrative
+    llm_generated_at = Column(DateTime(timezone=True), nullable=True)
 
     client = relationship("Client", back_populates="challenge_report")

@@ -41,13 +41,7 @@ export default function LoginPage() {
       localStorage.setItem(CLIENT_NAME_KEY, res.name);
 
       toast({ title: `Welcome back, ${res.name}!` });
-
-      // Route based on account state
-      if (!res.audit_completed) {
-        router.push("/audit");
-      } else {
-        router.push("/challenge");
-      }
+      router.push("/challenge");
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||

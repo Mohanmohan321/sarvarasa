@@ -1,8 +1,10 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
 from app.database import get_db
+from app.models.audit import LifestyleAudit
 from app.models.client import Client, ClientStatus
 from app.models.meal_log import MealLog
 from app.models.meal_food import MealFood
@@ -11,6 +13,7 @@ from app.services.compliance_engine import calculate_compliance
 from app.services.food_pattern_engine import aggregate_patterns
 from app.services.report_engine import build_report
 from app.services.eligibility_engine import calculate_eligibility, BAND_LABELS
+from app.services.llm_report_engine import generate_llm_report
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -21,10 +24,6 @@ REQUIRED_DAYS  = 7
 async def _aggregate_nutrition_from_meal_foods(
     db: AsyncSession, log_ids: list[str]
 ) -> dict:
-    """
-    Sum calories, protein, carbs, fat across all meal_foods for the given
-    meal log IDs.  Returns per-day averages for eligibility scoring.
-    """
     if not log_ids:
         return {
             "avg_daily_calories": 0.0,
@@ -39,8 +38,6 @@ async def _aggregate_nutrition_from_meal_foods(
 
     total_calories = sum(mf.calories or 0 for mf in meal_foods)
     total_protein  = sum(mf.protein  or 0 for mf in meal_foods)
-    # fiber is not stored on meal_foods — derive from food table via ORM if needed;
-    # for now keep it at 0 (eligibility still improves via calories + protein).
     return {
         "avg_daily_calories": round(total_calories / REQUIRED_DAYS, 1),
         "avg_daily_protein":  round(total_protein  / REQUIRED_DAYS, 1),
@@ -54,9 +51,8 @@ async def generate_report(client_id: str, db: AsyncSession = Depends(get_db)):
     if not client:
         raise HTTPException(404, "Client not found")
 
-    if not client.audit_completed:
-        raise HTTPException(403, "Lifestyle Audit must be completed before generating a report")
 
+    # Load meal logs for current cycle
     result = await db.execute(
         select(MealLog).where(
             and_(
@@ -66,6 +62,12 @@ async def generate_report(client_id: str, db: AsyncSession = Depends(get_db)):
         )
     )
     logs = result.scalars().all()
+
+    # Load lifestyle audit
+    audit_result = await db.execute(
+        select(LifestyleAudit).where(LifestyleAudit.client_id == client_id)
+    )
+    audit = audit_result.scalar_one_or_none()
 
     compliance     = calculate_compliance(logs)
     compliance_pct = compliance["compliance_pct"]
@@ -79,15 +81,12 @@ async def generate_report(client_id: str, db: AsyncSession = Depends(get_db)):
     else:
         qualification_status = "LOCKED"
 
-    # Food pattern classification (keyword-based, uses auto-generated meal_text)
     pattern_data      = aggregate_patterns(logs)
     food_pattern_pct  = pattern_data.get("percentages", {})
 
-    # Structured nutrition from meal_foods
     log_ids    = [log.id for log in logs]
     nutrition  = await _aggregate_nutrition_from_meal_foods(db, log_ids)
 
-    # Eligibility score — now uses real calories and fiber from structured records
     eligibility = calculate_eligibility(
         compliance_pct=compliance_pct,
         protein_pct=food_pattern_pct.get("PROTEIN_PRESENT", 0),
@@ -97,6 +96,7 @@ async def generate_report(client_id: str, db: AsyncSession = Depends(get_db)):
         submitted_meals=compliance["submitted_meals"],
     )
 
+    # Rule-based report (existing engine)
     report_data = build_report(
         client_name=client.name,
         compliance_pct=compliance_pct,
@@ -107,11 +107,25 @@ async def generate_report(client_id: str, db: AsyncSession = Depends(get_db)):
         eligibility_band=eligibility["eligibility_band"],
     )
 
+    # LLM-powered deep report
+    llm_data = await generate_llm_report(
+        client=client,
+        audit=audit,
+        meal_logs=logs,
+        food_pattern_pct=food_pattern_pct,
+        compliance_pct=compliance_pct,
+        completed_days=completed_days,
+        avg_daily_calories=nutrition["avg_daily_calories"],
+        avg_daily_protein=nutrition["avg_daily_protein"],
+    )
+
     # Upsert report
     cr = await db.get(ChallengeReport, client_id)
     if not cr:
         cr = ChallengeReport(client_id=client_id)
         db.add(cr)
+
+    # Rule-based fields
     cr.compliance_score     = compliance_pct
     cr.completed_days       = completed_days
     cr.qualification_status = qualification_status
@@ -123,6 +137,17 @@ async def generate_report(client_id: str, db: AsyncSession = Depends(get_db)):
     cr.action_plan          = report_data["action_plan"]
     cr.wholesome_plate_tips = report_data["wholesome_plate_tips"]
     cr.food_pattern_summary = food_pattern_pct
+
+    # LLM-generated fields
+    cr.commitment_level     = llm_data.get("commitment_level")
+    cr.commitment_analysis  = llm_data.get("commitment_analysis")
+    cr.food_recommendations = llm_data.get("food_recommendations")
+    cr.llm_insights         = {
+        "personalized_insights":   llm_data.get("personalized_insights", []),
+        "seriousness_indicators":  llm_data.get("seriousness_indicators", []),
+    }
+    cr.llm_summary          = llm_data.get("llm_summary")
+    cr.llm_generated_at     = datetime.now(timezone.utc)
 
     # Update client status
     if qualification_status == "QUALIFIED":
@@ -137,12 +162,20 @@ async def generate_report(client_id: str, db: AsyncSession = Depends(get_db)):
 
     return {
         **report_data,
-        "band_label":        BAND_LABELS.get(eligibility["eligibility_band"], ""),
-        "food_pattern_data": pattern_data,
+        "band_label":              BAND_LABELS.get(eligibility["eligibility_band"], ""),
+        "food_pattern_data":       pattern_data,
         "nutrition_summary": {
-            "avg_daily_calories": nutrition["avg_daily_calories"],
-            "avg_daily_protein":  nutrition["avg_daily_protein"],
+            "avg_daily_calories":  nutrition["avg_daily_calories"],
+            "avg_daily_protein":   nutrition["avg_daily_protein"],
         },
+        # LLM section
+        "commitment_level":        llm_data.get("commitment_level"),
+        "commitment_analysis":     llm_data.get("commitment_analysis"),
+        "seriousness_indicators":  llm_data.get("seriousness_indicators", []),
+        "food_recommendations":    llm_data.get("food_recommendations", []),
+        "llm_summary":             llm_data.get("llm_summary"),
+        "personalized_insights":   llm_data.get("personalized_insights", []),
+        "llm_generated_at":        cr.llm_generated_at.isoformat() if cr.llm_generated_at else None,
     }
 
 
@@ -156,19 +189,29 @@ async def get_report(client_id: str, db: AsyncSession = Depends(get_db)):
         )
 
     client = await db.get(Client, client_id)
+    llm_insights = cr.llm_insights or {}
 
     return {
-        "client_name":          client.name if client else "Unknown",
-        "compliance_score":     cr.compliance_score,
-        "completed_days":       cr.completed_days,
-        "qualification_status": cr.qualification_status,
-        "eligibility_band":     cr.eligibility_band,
-        "band_label":           BAND_LABELS.get(cr.eligibility_band or "", ""),
-        "food_observations":    cr.food_observations or [],
-        "strengths":            cr.strengths or [],
-        "improvement_areas":    cr.improvement_areas or [],
-        "action_plan":          cr.action_plan or [],
-        "wholesome_plate_tips": cr.wholesome_plate_tips or [],
-        "food_pattern_summary": cr.food_pattern_summary or {},
-        "generated_at":         cr.generated_at,
+        # Rule-based fields
+        "client_name":             client.name if client else "Unknown",
+        "compliance_score":        cr.compliance_score,
+        "completed_days":          cr.completed_days,
+        "qualification_status":    cr.qualification_status,
+        "eligibility_band":        cr.eligibility_band,
+        "band_label":              BAND_LABELS.get(cr.eligibility_band or "", ""),
+        "food_observations":       cr.food_observations or [],
+        "strengths":               cr.strengths or [],
+        "improvement_areas":       cr.improvement_areas or [],
+        "action_plan":             cr.action_plan or [],
+        "wholesome_plate_tips":    cr.wholesome_plate_tips or [],
+        "food_pattern_summary":    cr.food_pattern_summary or {},
+        "generated_at":            cr.generated_at,
+        # LLM fields
+        "commitment_level":        cr.commitment_level,
+        "commitment_analysis":     cr.commitment_analysis,
+        "seriousness_indicators":  llm_insights.get("seriousness_indicators", []),
+        "food_recommendations":    cr.food_recommendations or [],
+        "llm_summary":             cr.llm_summary,
+        "personalized_insights":   llm_insights.get("personalized_insights", []),
+        "llm_generated_at":        cr.llm_generated_at,
     }

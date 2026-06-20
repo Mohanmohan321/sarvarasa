@@ -1,6 +1,7 @@
 import { Navbar } from "@/components/layout/navbar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { Hero } from "@/components/landing/hero";
+import { JourneyStages } from "@/components/landing/journey-stages";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { WhyDifferent } from "@/components/landing/why-different";
 import { Features } from "@/components/landing/features";
@@ -12,6 +13,7 @@ export default function HomePage() {
       <Navbar />
       <main className="pb-20 md:pb-0">
         <Hero />
+        <JourneyStages />
         <HowItWorks />
         <WhyDifferent />
         <Features />

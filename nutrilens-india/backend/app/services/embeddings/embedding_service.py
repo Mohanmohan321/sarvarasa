@@ -1,28 +1,37 @@
 """
-Gemini text-embedding-004 service.
+OpenRouter embedding service via openai-compatible /embeddings endpoint.
 768-dimensional embeddings for semantic food search.
+
+NOTE: nvidia/nemotron-3.5-content-safety:free does NOT support embeddings.
+      Set EMBEDDING_MODEL in .env to an embedding-capable model on OpenRouter,
+      e.g. "text-embedding-3-small" (requires OpenAI key) or another provider.
+      Current DB schema expects 768-dim vectors — pick a model that matches.
 """
 import asyncio
 import time
 from typing import List
-import google.generativeai as genai
+from openai import OpenAI
 from app.config import settings
 
-genai.configure(api_key=settings.gemini_api_key)
-
-EMBEDDING_MODEL = "models/text-embedding-004"
+EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIM = 768
-_RATE_LIMIT_DELAY = 0.1   # 100 ms between calls to avoid 429s
+_RATE_LIMIT_DELAY = 0.1
+
+
+def _client() -> OpenAI:
+    return OpenAI(
+        api_key=settings.openrouter_api_key,
+        base_url="https://openrouter.ai/api/v1"
+    )
 
 
 def embed_text_sync(text: str, task_type: str = "retrieval_document") -> List[float]:
     """Synchronous embedding — used by the import script."""
-    result = genai.embed_content(
+    result = _client().embeddings.create(
         model=EMBEDDING_MODEL,
-        content=text,
-        task_type=task_type,
+        input=text,
     )
-    return result["embedding"]
+    return result.data[0].embedding
 
 
 async def embed_text(text: str, task_type: str = "retrieval_document") -> List[float]:
@@ -33,7 +42,7 @@ async def embed_text(text: str, task_type: str = "retrieval_document") -> List[f
 
 
 async def embed_query(text: str) -> List[float]:
-    """Embed a user query (uses retrieval_query task type for better ANN accuracy)."""
+    """Embed a user query."""
     return await embed_text(text, task_type="retrieval_query")
 
 

@@ -4,7 +4,9 @@ import json
 
 
 class Settings(BaseSettings):
-    gemini_api_key: str = ""
+    openrouter_api_key: str = ""
+    content_safety_model: str = "nvidia/nemotron-3.5-content-safety:free"
+    llm_report_model: str = "meta-llama/llama-3.3-70b-instruct:free"
     database_url: str = ""
     indb_file_path: str = "./data/Anuvaad_INDB_2024.11.xlsx"
     upload_dir: str = "./uploads"
